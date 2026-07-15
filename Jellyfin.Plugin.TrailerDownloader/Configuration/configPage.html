@@ -113,6 +113,16 @@
                         <div class="inputContainer">
                             <input is="emby-input" type="text" id="txtExtraArgs" label="Extra yt-dlp arguments (optional)" />
                         </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtCookiesFile" label="YouTube cookies file (optional)" />
+                            <div class="fieldDescription">
+                                Only needed for age-restricted trailers that the automatic search retry can't recover.
+                                While signed in to YouTube, export a Netscape-format cookies.txt (e.g. with the
+                                "Get cookies.txt LOCALLY" browser extension), place it where the Jellyfin server can
+                                read it, and enter the full path here. Warning: cookies grant access to your YouTube
+                                account — keep the file protected.
+                            </div>
+                        </div>
                     </div>
 
                     <div id="ytdlmSettings" class="hide">
@@ -202,6 +212,7 @@
                     el('chkAutoUpdate').checked = config.AutoUpdateYtDlp !== false;
                     el('txtYtDlpPath').value = config.YtDlpPath || '';
                     el('txtExtraArgs').value = config.YtDlpExtraArgs || '';
+                    el('txtCookiesFile').value = config.CookiesFilePath || '';
                     el('txtYtdlmUrl').value = config.YtdlMaterialUrl || '';
                     el('txtYtdlmApiKey').value = config.YtdlMaterialApiKey || '';
                     el('selScheduleMode').value = config.ScheduleMode || 'Weekly';
@@ -226,6 +237,7 @@
                     config.AutoUpdateYtDlp = el('chkAutoUpdate').checked;
                     config.YtDlpPath = el('txtYtDlpPath').value;
                     config.YtDlpExtraArgs = el('txtExtraArgs').value;
+                    config.CookiesFilePath = el('txtCookiesFile').value;
                     config.YtdlMaterialUrl = el('txtYtdlmUrl').value;
                     config.YtdlMaterialApiKey = el('txtYtdlmApiKey').value;
                     config.ScheduleMode = el('selScheduleMode').value;

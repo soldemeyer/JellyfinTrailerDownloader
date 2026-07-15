@@ -2,7 +2,7 @@
 # ready to drop into Jellyfin's plugins directory.
 $ErrorActionPreference = 'Stop'
 
-$version = '1.0.2.0'
+$version = '1.0.3.0'
 $root = $PSScriptRoot
 $proj = Join-Path $root 'Jellyfin.Plugin.TrailerDownloader\Jellyfin.Plugin.TrailerDownloader.csproj'
 $outDir = Join-Path $root 'dist\trailer-downloader'
@@ -26,7 +26,7 @@ $meta = [ordered]@{
     owner       = 'soldemeyer'
     category    = 'General'
     version     = $version
-    changelog   = 'Sidebar menu entry, schedule settings in plugin page, plugin banner image.'
+    changelog   = 'Retry dead or age-restricted trailer URLs via YouTube search; optional cookies file support.'
     targetAbi   = '10.11.0.0'
     framework   = 'net9.0'
     autoUpdate  = $false

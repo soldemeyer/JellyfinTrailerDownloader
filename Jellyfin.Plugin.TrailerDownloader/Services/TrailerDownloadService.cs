@@ -113,6 +113,28 @@ public class TrailerDownloadService
             }
 
             var result = await GetBackend(config).DownloadAsync(request, config, cancellationToken).ConfigureAwait(false);
+
+            // Metadata trailer URLs are often dead (age-gated, copyright-blocked,
+            // private or deleted uploads). When the direct URL fails, retry once with
+            // a YouTube search — alternative uploads of trailers are nearly always
+            // available.
+            if (!result.Success
+                && !url.StartsWith("ytsearch", StringComparison.OrdinalIgnoreCase)
+                && _scanner.BuildSearchExpression(movie, config) is { } searchExpression)
+            {
+                _logger.LogInformation(
+                    "Direct trailer URL failed for {Movie}, retrying via YouTube search: {Search}",
+                    movie.Name,
+                    searchExpression);
+
+                var firstError = result.Message;
+                var retryRequest = request with { Url = searchExpression };
+                result = await GetBackend(config).DownloadAsync(retryRequest, config, cancellationToken).ConfigureAwait(false);
+                result = result.Success
+                    ? result with { Message = result.Message + " (metadata URL failed; used YouTube search instead)" }
+                    : result with { Message = $"Metadata URL failed: {firstError} | Search retry failed: {result.Message}" };
+            }
+
             if (result.Success && config.Backend == DownloadBackend.EmbeddedYtDlp)
             {
                 QueueRefresh(movie);

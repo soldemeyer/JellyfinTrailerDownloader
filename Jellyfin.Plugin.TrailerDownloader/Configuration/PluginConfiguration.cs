@@ -85,6 +85,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets extra command line arguments passed to yt-dlp.</summary>
     public string YtDlpExtraArgs { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the path to a Netscape-format YouTube cookies.txt file, used to
+    /// download age-restricted trailers. Empty = no cookies.
+    /// </summary>
+    public string CookiesFilePath { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the base URL of the YoutubeDL-Material server (e.g. http://192.168.1.10:8998).</summary>
     public string YtdlMaterialUrl { get; set; } = string.Empty;
 

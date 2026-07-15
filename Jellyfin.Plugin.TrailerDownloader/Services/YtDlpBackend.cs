@@ -79,6 +79,19 @@ public class YtDlpBackend : ITrailerDownloadBackend
             psi.ArgumentList.Add("deno:" + denoPath);
         }
 
+        if (!string.IsNullOrWhiteSpace(config.CookiesFilePath))
+        {
+            if (File.Exists(config.CookiesFilePath))
+            {
+                psi.ArgumentList.Add("--cookies");
+                psi.ArgumentList.Add(config.CookiesFilePath);
+            }
+            else
+            {
+                _logger.LogWarning("Configured cookies file does not exist: {Path}", config.CookiesFilePath);
+            }
+        }
+
         foreach (var arg in SplitArgs(config.YtDlpExtraArgs))
         {
             psi.ArgumentList.Add(arg);

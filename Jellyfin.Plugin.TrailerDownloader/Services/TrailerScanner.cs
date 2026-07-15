@@ -112,6 +112,15 @@ public class TrailerScanner
             return url;
         }
 
+        return BuildSearchExpression(movie, config);
+    }
+
+    /// <summary>
+    /// Builds the yt-dlp "ytsearch1:" expression for a movie, or null when the search
+    /// fallback is disabled.
+    /// </summary>
+    public string? BuildSearchExpression(Movie movie, PluginConfiguration config)
+    {
         if (!config.EnableSearchFallback)
         {
             return null;
