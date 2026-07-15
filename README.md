@@ -41,10 +41,9 @@ Host this repo on GitHub and:
 
 1. Run `./package.ps1`, then create a GitHub release tagged `v1.0.0.0` and attach
    `dist/trailer-downloader_1.0.0.0.zip` to it.
-2. Edit `manifest.json`: replace `YOURUSER` in `sourceUrl` with your GitHub username
-   (the checksum/timestamp are maintained by `package.ps1`). Commit and push.
+2. Commit and push (the manifest checksum/timestamp are maintained by `package.ps1`).
 3. In Jellyfin: Dashboard → Plugins → Repositories → **+**, and add:
-   `https://raw.githubusercontent.com/YOURUSER/JellyfinTrailerDownloader/main/manifest.json`
+   `https://raw.githubusercontent.com/soldemeyer/JellyfinTrailerDownloader/main/manifest.json`
 4. The plugin now appears in Dashboard → Plugins → Catalog under General, installs
    with one click, and future versions added to `manifest.json` show up as updates.
 

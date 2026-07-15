@@ -4,7 +4,7 @@ guid: "8f7fd897-4d3c-4a06-b8b1-8ca9b1c1a042"
 version: "1.0.0.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
-owner: "spence89"
+owner: "soldemeyer"
 category: "General"
 overview: "Downloads YouTube movie trailers and stores them locally next to your movies."
 description: >
