@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Trailer Downloader</title>
+</head>
+<body>
+<div id="TrailerDownloaderConfigPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="TrailerDownloaderConfigForm">
+                <div class="verticalSection verticalSection-extrabottompadding">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">Trailer Downloader</h2>
+                    </div>
+
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selBackend" label="Download engine">
+                            <option value="EmbeddedYtDlp">Embedded yt-dlp (runs on this server, recommended)</option>
+                            <option value="YoutubeDlMaterial">YoutubeDL-Material server (remote API)</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Embedded yt-dlp is downloaded and managed automatically by the plugin and saves trailers
+                            directly next to your movies. The YoutubeDL-Material option queues downloads on a remote
+                            server — trailers only attach to movies if that server writes to the same media folders
+                            Jellyfin uses.
+                        </div>
+                    </div>
+
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selQuality" label="Maximum trailer quality">
+                            <option value="Best">Best available</option>
+                            <option value="Q2160p">2160p (4K)</option>
+                            <option value="Q1080p">1080p</option>
+                            <option value="Q720p">720p</option>
+                            <option value="Q480p">480p</option>
+                        </select>
+                    </div>
+
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selFileLayout" label="Trailer file placement">
+                            <option value="Suffix">MovieFileName-trailer.mp4 (next to the movie)</option>
+                            <option value="TrailersFolder">"trailers" subfolder inside the movie folder</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Both are native Jellyfin conventions. Movies sharing a folder with other movies always use
+                            the -trailer suffix.
+                        </div>
+                    </div>
+
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="chkSearchFallback" />
+                        <span>Search YouTube when metadata has no trailer URL</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Uses a "title year official trailer" search. Finds more trailers but can occasionally pick a
+                        wrong or fan-made video.
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="txtSearchTemplate" label="Search template" />
+                        <div class="fieldDescription">Placeholders: {title}, {year}</div>
+                    </div>
+
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="chkOverwrite" />
+                        <span>Re-download and overwrite existing local trailers</span>
+                    </label>
+
+                    <div id="ytdlpSettings">
+                        <h3>Embedded yt-dlp</h3>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkAutoUpdate" />
+                            <span>Automatically update yt-dlp weekly</span>
+                        </label>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtYtDlpPath" label="Custom yt-dlp path (optional)" />
+                            <div class="fieldDescription">Leave empty to let the plugin download and manage its own yt-dlp binary.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtExtraArgs" label="Extra yt-dlp arguments (optional)" />
+                        </div>
+                    </div>
+
+                    <div id="ytdlmSettings" class="hide">
+                        <h3>YoutubeDL-Material server</h3>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtYtdlmUrl" label="Server URL" placeholder="http://192.168.1.10:8998" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="txtYtdlmApiKey" label="API key" autocomplete="off" />
+                            <div class="fieldDescription">Enable the public API in YoutubeDL-Material's settings (Extra tab) and generate a key.</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="verticalSection verticalSection-extrabottompadding">
+                <div class="sectionTitleContainer flex align-items-center">
+                    <h2 class="sectionTitle">Library</h2>
+                </div>
+
+                <div style="margin-bottom:1em;">
+                    <button is="emby-button" type="button" id="btnDownloadAll" class="raised button-submit emby-button">
+                        <span>Download all missing trailers</span>
+                    </button>
+                    <button is="emby-button" type="button" id="btnRefreshList" class="raised emby-button">
+                        <span>Refresh list</span>
+                    </button>
+                </div>
+
+                <div id="scanStatus" class="fieldDescription" style="margin-bottom:1em;"></div>
+
+                <div style="overflow-x:auto;">
+                    <table class="detailTable" style="width:100%; text-align:left; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="padding:0.4em;">Movie</th>
+                                <th style="padding:0.4em;">Year</th>
+                                <th style="padding:0.4em;">Local trailer</th>
+                                <th style="padding:0.4em;">Source</th>
+                                <th style="padding:0.4em;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="movieListBody">
+                            <tr><td colspan="5" style="padding:0.4em;">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = '8f7fd897-4d3c-4a06-b8b1-8ca9b1c1a042';
+            var statusTimer = null;
+
+            function el(id) { return document.getElementById(id); }
+
+            function toggleBackendSections() {
+                var backend = el('selBackend').value;
+                el('ytdlpSettings').classList.toggle('hide', backend !== 'EmbeddedYtDlp');
+                el('ytdlmSettings').classList.toggle('hide', backend !== 'YoutubeDlMaterial');
+            }
+
+            function loadConfig(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    el('selBackend').value = config.Backend || 'EmbeddedYtDlp';
+                    el('selQuality').value = config.Quality || 'Q1080p';
+                    el('selFileLayout').value = config.FileLayout || 'Suffix';
+                    el('chkSearchFallback').checked = config.EnableSearchFallback !== false;
+                    el('txtSearchTemplate').value = config.SearchTemplate || '{title} {year} official trailer';
+                    el('chkOverwrite').checked = !!config.OverwriteExisting;
+                    el('chkAutoUpdate').checked = config.AutoUpdateYtDlp !== false;
+                    el('txtYtDlpPath').value = config.YtDlpPath || '';
+                    el('txtExtraArgs').value = config.YtDlpExtraArgs || '';
+                    el('txtYtdlmUrl').value = config.YtdlMaterialUrl || '';
+                    el('txtYtdlmApiKey').value = config.YtdlMaterialApiKey || '';
+                    toggleBackendSections();
+                    Dashboard.hideLoadingMsg();
+                });
+            }
+
+            function saveConfig() {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    config.Backend = el('selBackend').value;
+                    config.Quality = el('selQuality').value;
+                    config.FileLayout = el('selFileLayout').value;
+                    config.EnableSearchFallback = el('chkSearchFallback').checked;
+                    config.SearchTemplate = el('txtSearchTemplate').value;
+                    config.OverwriteExisting = el('chkOverwrite').checked;
+                    config.AutoUpdateYtDlp = el('chkAutoUpdate').checked;
+                    config.YtDlpPath = el('txtYtDlpPath').value;
+                    config.YtDlpExtraArgs = el('txtExtraArgs').value;
+                    config.YtdlMaterialUrl = el('txtYtdlmUrl').value;
+                    config.YtdlMaterialApiKey = el('txtYtdlmApiKey').value;
+                    ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+            }
+
+            function loadMovies() {
+                var body = el('movieListBody');
+                body.innerHTML = '<tr><td colspan="5" style="padding:0.4em;">Loading…</td></tr>';
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('TrailerDownloader/Movies'),
+                    dataType: 'json'
+                }).then(function (movies) {
+                    if (!movies.length) {
+                        body.innerHTML = '<tr><td colspan="5" style="padding:0.4em;">No movies found in the library.</td></tr>';
+                        return;
+                    }
+                    body.innerHTML = '';
+                    movies.forEach(function (m) {
+                        var tr = document.createElement('tr');
+
+                        var source = m.HasRemoteTrailerUrl ? 'Metadata' : (m.CanSearch ? 'YouTube search' : 'None');
+                        var canDownload = m.HasRemoteTrailerUrl || m.CanSearch;
+
+                        tr.innerHTML =
+                            '<td style="padding:0.4em;"></td>' +
+                            '<td style="padding:0.4em;">' + (m.Year || '') + '</td>' +
+                            '<td style="padding:0.4em;">' + (m.HasLocalTrailer ? '✔' : '—') + '</td>' +
+                            '<td style="padding:0.4em;">' + source + '</td>' +
+                            '<td style="padding:0.4em;"></td>';
+                        tr.cells[0].textContent = m.Name;
+
+                        if (canDownload) {
+                            var btn = document.createElement('button');
+                            btn.setAttribute('is', 'emby-button');
+                            btn.type = 'button';
+                            btn.className = 'raised emby-button';
+                            btn.innerHTML = '<span>' + (m.HasLocalTrailer ? 'Re-download' : 'Download') + '</span>';
+                            btn.addEventListener('click', function () {
+                                downloadOne(m.Id, m.Name, btn);
+                            });
+                            tr.cells[4].appendChild(btn);
+                        }
+
+                        body.appendChild(tr);
+                    });
+                }, function () {
+                    body.innerHTML = '<tr><td colspan="5" style="padding:0.4em;">Failed to load movie list.</td></tr>';
+                });
+            }
+
+            function downloadOne(id, name, btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>Downloading…</span>';
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('TrailerDownloader/Download/' + id),
+                    dataType: 'json'
+                }).then(function (result) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>' + (result.Success ? 'Done ✔' : 'Failed ✖') + '</span>';
+                    if (!result.Success) {
+                        Dashboard.alert({ title: 'Trailer download failed: ' + name, message: result.Message });
+                    }
+                }, function () {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Failed ✖</span>';
+                });
+            }
+
+            function pollStatus() {
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('TrailerDownloader/Status'),
+                    dataType: 'json'
+                }).then(function (s) {
+                    var elStatus = el('scanStatus');
+                    if (!elStatus) { return; }
+                    if (s.IsRunning) {
+                        var current = s.CurrentMovie ? (' — ' + s.CurrentMovie) : '';
+                        elStatus.textContent = 'Scan running: ' + s.Processed + ' / ' + s.Total + current;
+                    } else if (s.Recent && s.Recent.length) {
+                        var last = s.Recent[0];
+                        elStatus.textContent = 'Last: ' + last.Movie + ' — ' + (last.Success ? 'OK' : 'failed') + ' (' + last.Message + ')';
+                    } else {
+                        elStatus.textContent = '';
+                    }
+                });
+            }
+
+            function startPolling() {
+                stopPolling();
+                pollStatus();
+                statusTimer = setInterval(pollStatus, 4000);
+            }
+
+            function stopPolling() {
+                if (statusTimer) {
+                    clearInterval(statusTimer);
+                    statusTimer = null;
+                }
+            }
+
+            var page = document.getElementById('TrailerDownloaderConfigPage');
+
+            page.addEventListener('pageshow', function () {
+                loadConfig(page);
+                loadMovies();
+                startPolling();
+            });
+
+            page.addEventListener('pagehide', function () {
+                stopPolling();
+            });
+
+            document.getElementById('TrailerDownloaderConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                saveConfig();
+                return false;
+            });
+
+            el('selBackend').addEventListener('change', toggleBackendSections);
+            el('btnRefreshList').addEventListener('click', loadMovies);
+            el('btnDownloadAll').addEventListener('click', function () {
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('TrailerDownloader/DownloadAll')
+                }).then(function () {
+                    el('scanStatus').textContent = 'Library scan started…';
+                }, function () {
+                    Dashboard.alert('Failed to start the library scan.');
+                });
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

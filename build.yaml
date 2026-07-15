@@ -1,0 +1,18 @@
+---
+name: "Trailer Downloader"
+guid: "8f7fd897-4d3c-4a06-b8b1-8ca9b1c1a042"
+version: "1.0.0.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+owner: "spence89"
+category: "General"
+overview: "Downloads YouTube movie trailers and stores them locally next to your movies."
+description: >
+  Scans your movie library and downloads trailers from YouTube using an embedded,
+  auto-managed yt-dlp binary (or a remote YoutubeDL-Material server). Trailers are
+  saved using Jellyfin's local trailer naming conventions so they attach to each
+  movie automatically. Supports per-movie manual downloads, a manual full-library
+  run, a weekly scheduled task, and configurable quality and file placement.
+changelog: "Initial release."
+artifacts:
+  - "Jellyfin.Plugin.TrailerDownloader.dll"
