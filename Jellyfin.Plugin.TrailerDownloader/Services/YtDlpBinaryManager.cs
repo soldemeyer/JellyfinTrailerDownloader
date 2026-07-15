@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.Logging;
@@ -107,6 +108,98 @@ public class YtDlpBinaryManager
         finally
         {
             _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Ensures a Deno binary is available for yt-dlp's YouTube JS challenge solving
+    /// (see https://github.com/yt-dlp/yt-dlp/wiki/EJS). Returns null on failure so
+    /// callers can proceed without a JS runtime.
+    /// </summary>
+    public async Task<string?> EnsureDenoAsync(CancellationToken cancellationToken)
+    {
+        var denoPath = Path.Combine(DataFolder, RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "deno.exe" : "deno");
+
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (File.Exists(denoPath))
+            {
+                return denoPath;
+            }
+
+            Directory.CreateDirectory(DataFolder);
+            var url = $"https://github.com/denoland/deno/releases/latest/download/{DenoAssetName}.zip";
+            _logger.LogInformation("Downloading Deno JS runtime from {Url}", url);
+
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(5);
+
+            var zipPath = denoPath + ".zip.tmp";
+            await using (var response = await client.GetStreamAsync(url, cancellationToken).ConfigureAwait(false))
+            await using (var file = File.Create(zipPath))
+            {
+                await response.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
+            }
+
+            try
+            {
+                using var archive = ZipFile.OpenRead(zipPath);
+                var entry = archive.Entries.First(e =>
+                    string.Equals(Path.GetFileNameWithoutExtension(e.Name), "deno", StringComparison.OrdinalIgnoreCase));
+                entry.ExtractToFile(denoPath, overwrite: true);
+            }
+            finally
+            {
+                File.Delete(zipPath);
+            }
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                File.SetUnixFileMode(
+                    denoPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                    UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+            }
+
+            _logger.LogInformation("Deno installed at {Path}", denoPath);
+            return denoPath;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not install Deno; YouTube downloads may fail with 403 errors for some videos");
+            return null;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    private static string DenoAssetName
+    {
+        get
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return "deno-x86_64-pc-windows-msvc";
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? "deno-aarch64-apple-darwin"
+                    : "deno-x86_64-apple-darwin";
+            }
+
+            return RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                ? "deno-aarch64-unknown-linux-gnu"
+                : "deno-x86_64-unknown-linux-gnu";
         }
     }
 

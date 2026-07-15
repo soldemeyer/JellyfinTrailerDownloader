@@ -70,6 +70,15 @@ public class YtDlpBackend : ITrailerDownloadBackend
             psi.ArgumentList.Add(ffmpegDir);
         }
 
+        // YouTube requires a JS runtime for player challenges; without one many
+        // videos fail with HTTP 403 (see yt-dlp EJS wiki).
+        var denoPath = await _binaryManager.EnsureDenoAsync(cancellationToken).ConfigureAwait(false);
+        if (denoPath is not null)
+        {
+            psi.ArgumentList.Add("--js-runtimes");
+            psi.ArgumentList.Add("deno:" + denoPath);
+        }
+
         foreach (var arg in SplitArgs(config.YtDlpExtraArgs))
         {
             psi.ArgumentList.Add(arg);

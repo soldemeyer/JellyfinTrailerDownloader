@@ -34,7 +34,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             new PluginPageInfo
             {
                 Name = "TrailerDownloader",
-                EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html",
+                EnableInMainMenu = true,
+                DisplayName = "Trailer Downloader",
+                MenuSection = "server",
+                MenuIcon = "theaters"
             }
         };
     }

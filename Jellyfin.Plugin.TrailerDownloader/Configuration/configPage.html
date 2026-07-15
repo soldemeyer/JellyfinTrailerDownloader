@@ -69,6 +69,37 @@
                         <span>Re-download and overwrite existing local trailers</span>
                     </label>
 
+                    <h3>Automatic schedule</h3>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selScheduleMode" label="Automatically download trailers">
+                            <option value="Disabled">Disabled</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="EveryXHours">Every X hours</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Saving this page sets the schedule of the "Download missing movie trailers" task
+                            (also visible under Dashboard → Scheduled Tasks, but this page overwrites it on save).
+                        </div>
+                    </div>
+                    <div class="selectContainer" id="scheduleDayContainer">
+                        <select is="emby-select" id="selScheduleDay" label="Day of week">
+                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                    </div>
+                    <div class="inputContainer" id="scheduleTimeContainer">
+                        <input is="emby-input" type="time" id="txtScheduleTime" label="Time of day" />
+                    </div>
+                    <div class="inputContainer" id="scheduleIntervalContainer">
+                        <input is="emby-input" type="number" id="txtScheduleInterval" label="Interval (hours)" min="1" max="168" />
+                    </div>
+
                     <div id="ytdlpSettings">
                         <h3>Embedded yt-dlp</h3>
                         <label class="checkboxContainer">
@@ -152,6 +183,13 @@
                 el('ytdlmSettings').classList.toggle('hide', backend !== 'YoutubeDlMaterial');
             }
 
+            function toggleScheduleFields() {
+                var mode = el('selScheduleMode').value;
+                el('scheduleDayContainer').classList.toggle('hide', mode !== 'Weekly');
+                el('scheduleTimeContainer').classList.toggle('hide', mode !== 'Daily' && mode !== 'Weekly');
+                el('scheduleIntervalContainer').classList.toggle('hide', mode !== 'EveryXHours');
+            }
+
             function loadConfig(page) {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(function (config) {
@@ -166,7 +204,12 @@
                     el('txtExtraArgs').value = config.YtDlpExtraArgs || '';
                     el('txtYtdlmUrl').value = config.YtdlMaterialUrl || '';
                     el('txtYtdlmApiKey').value = config.YtdlMaterialApiKey || '';
+                    el('selScheduleMode').value = config.ScheduleMode || 'Weekly';
+                    el('selScheduleDay').value = config.ScheduleDayOfWeek || 'Sunday';
+                    el('txtScheduleTime').value = config.ScheduleTime || '03:00';
+                    el('txtScheduleInterval').value = config.ScheduleIntervalHours || 24;
                     toggleBackendSections();
+                    toggleScheduleFields();
                     Dashboard.hideLoadingMsg();
                 });
             }
@@ -185,6 +228,10 @@
                     config.YtDlpExtraArgs = el('txtExtraArgs').value;
                     config.YtdlMaterialUrl = el('txtYtdlmUrl').value;
                     config.YtdlMaterialApiKey = el('txtYtdlmApiKey').value;
+                    config.ScheduleMode = el('selScheduleMode').value;
+                    config.ScheduleDayOfWeek = el('selScheduleDay').value;
+                    config.ScheduleTime = el('txtScheduleTime').value || '03:00';
+                    config.ScheduleIntervalHours = parseInt(el('txtScheduleInterval').value, 10) || 24;
                     ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
                     });
@@ -308,6 +355,7 @@
             });
 
             el('selBackend').addEventListener('change', toggleBackendSections);
+            el('selScheduleMode').addEventListener('change', toggleScheduleFields);
             el('btnRefreshList').addEventListener('click', loadMovies);
             el('btnDownloadAll').addEventListener('click', function () {
                 ApiClient.ajax({

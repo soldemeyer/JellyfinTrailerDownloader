@@ -2,7 +2,7 @@
 # ready to drop into Jellyfin's plugins directory.
 $ErrorActionPreference = 'Stop'
 
-$version = '1.0.0.0'
+$version = '1.0.2.0'
 $root = $PSScriptRoot
 $proj = Join-Path $root 'Jellyfin.Plugin.TrailerDownloader\Jellyfin.Plugin.TrailerDownloader.csproj'
 $outDir = Join-Path $root 'dist\trailer-downloader'
@@ -16,6 +16,7 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 
 $binDir = Join-Path $root 'Jellyfin.Plugin.TrailerDownloader\bin\Release\net9.0'
 Copy-Item (Join-Path $binDir 'Jellyfin.Plugin.TrailerDownloader.dll') $outDir
+Copy-Item (Join-Path $root 'assets\banner.png') (Join-Path $outDir 'image.png')
 
 $meta = [ordered]@{
     guid        = '8f7fd897-4d3c-4a06-b8b1-8ca9b1c1a042'
@@ -25,11 +26,11 @@ $meta = [ordered]@{
     owner       = 'soldemeyer'
     category    = 'General'
     version     = $version
-    changelog   = 'Initial release.'
+    changelog   = 'Sidebar menu entry, schedule settings in plugin page, plugin banner image.'
     targetAbi   = '10.11.0.0'
     framework   = 'net9.0'
     autoUpdate  = $false
-    imagePath   = ''
+    imagePath   = 'image.png'
     status      = 'Active'
     timestamp   = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 }

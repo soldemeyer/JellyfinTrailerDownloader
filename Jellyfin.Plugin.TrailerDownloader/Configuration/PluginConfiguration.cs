@@ -32,8 +32,29 @@ public enum TrailerFileLayout
     TrailersFolder = 1
 }
 
+/// <summary>How the automatic library-wide download is scheduled.</summary>
+public enum ScheduleMode
+{
+    Disabled = 0,
+    Daily = 1,
+    Weekly = 2,
+    EveryXHours = 3
+}
+
 public class PluginConfiguration : BasePluginConfiguration
 {
+    /// <summary>Gets or sets how the automatic download task is scheduled.</summary>
+    public ScheduleMode ScheduleMode { get; set; } = ScheduleMode.Weekly;
+
+    /// <summary>Gets or sets the time of day ("HH:mm") for daily/weekly schedules.</summary>
+    public string ScheduleTime { get; set; } = "03:00";
+
+    /// <summary>Gets or sets the day of week for weekly schedules.</summary>
+    public DayOfWeek ScheduleDayOfWeek { get; set; } = DayOfWeek.Sunday;
+
+    /// <summary>Gets or sets the interval in hours for EveryXHours schedules.</summary>
+    public int ScheduleIntervalHours { get; set; } = 24;
+
     /// <summary>Gets or sets the download engine to use.</summary>
     public DownloadBackend Backend { get; set; } = DownloadBackend.EmbeddedYtDlp;
 

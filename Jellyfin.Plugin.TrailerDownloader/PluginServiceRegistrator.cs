@@ -15,5 +15,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<YoutubeDlMaterialBackend>();
         serviceCollection.AddSingleton<TrailerScanner>();
         serviceCollection.AddSingleton<TrailerDownloadService>();
+        serviceCollection.AddHostedService<ScheduleSyncService>();
     }
 }

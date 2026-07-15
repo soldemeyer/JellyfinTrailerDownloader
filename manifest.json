@@ -6,8 +6,24 @@
     "overview": "Downloads YouTube movie trailers and stores them locally next to your movies.",
     "owner": "soldemeyer",
     "category": "General",
-    "imageUrl": "",
+    "imageUrl": "https://raw.githubusercontent.com/soldemeyer/JellyfinTrailerDownloader/main/assets/banner.png",
     "versions": [
+      {
+        "version": "1.0.2.0",
+        "changelog": "Sidebar menu entry, schedule settings in plugin page, plugin banner image.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/soldemeyer/JellyfinTrailerDownloader/releases/download/v1.0.2.0/trailer-downloader_1.0.2.0.zip",
+        "checksum": "21e6945f60bda77c593e647f612e19a0",
+        "timestamp": "2026-07-15T05:28:48Z"
+      },
+      {
+        "version": "1.0.1.0",
+        "changelog": "Bundle Deno JS runtime to fix YouTube 403 errors.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/soldemeyer/JellyfinTrailerDownloader/releases/download/v1.0.1.0/trailer-downloader_1.0.1.0.zip",
+        "checksum": "0a18165dfa8526036fb40165031e9ffa",
+        "timestamp": "2026-07-15T05:13:22Z"
+      },
       {
         "version": "1.0.0.0",
         "changelog": "Initial release.",
