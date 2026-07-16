@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.TrailerDownloader.Services;
 /// Downloads trailers by running the plugin-managed yt-dlp binary directly on the
 /// Jellyfin server, writing straight into the movie folder.
 /// </summary>
-public class YtDlpBackend : ITrailerDownloadBackend
+public partial class YtDlpBackend : ITrailerDownloadBackend
 {
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(30);
 
@@ -25,7 +25,7 @@ public class YtDlpBackend : ITrailerDownloadBackend
         _logger = logger;
     }
 
-    public async Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, CancellationToken cancellationToken)
+    public async Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken)
     {
         string binary;
         try
@@ -58,7 +58,7 @@ public class YtDlpBackend : ITrailerDownloadBackend
         psi.ArgumentList.Add("--merge-output-format");
         psi.ArgumentList.Add("mp4");
         psi.ArgumentList.Add("--no-playlist");
-        psi.ArgumentList.Add("--no-progress");
+        psi.ArgumentList.Add("--newline");
         psi.ArgumentList.Add("--no-mtime");
         psi.ArgumentList.Add("-o");
         psi.ArgumentList.Add(outputTemplate);
@@ -111,8 +111,31 @@ public class YtDlpBackend : ITrailerDownloadBackend
         _logger.LogInformation("Running yt-dlp for {Url} -> {Template}", request.Url, outputTemplate);
 
         var output = new StringBuilder();
+        var lastProgressReport = DateTime.MinValue;
         using var process = new Process { StartInfo = psi };
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) { output.AppendLine(e.Data); } };
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is null)
+            {
+                return;
+            }
+
+            // Progress lines ("[download]  42.3% of 7.78MiB at 12.04MiB/s ETA 00:00")
+            // are surfaced as activity (throttled) and kept out of the error log tail.
+            var progress = ProgressLineRegex().Match(e.Data);
+            if (progress.Success)
+            {
+                if (onActivity is not null && DateTime.UtcNow - lastProgressReport > TimeSpan.FromSeconds(1))
+                {
+                    lastProgressReport = DateTime.UtcNow;
+                    onActivity($"Downloading… {progress.Groups[1].Value}% at {progress.Groups[2].Value}, ETA {progress.Groups[3].Value}");
+                }
+
+                return;
+            }
+
+            output.AppendLine(e.Data);
+        };
         process.ErrorDataReceived += (_, e) => { if (e.Data is not null) { output.AppendLine(e.Data); } };
 
         try
@@ -262,4 +285,7 @@ public class YtDlpBackend : ITrailerDownloadBackend
         text = text.Trim();
         return text.Length <= maxChars ? text : text[^maxChars..];
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\[download\]\s+(\d+(?:\.\d+)?)%\s+of\s+~?\s*\S+\s+at\s+(\S+)\s+ETA\s+(\S+)")]
+    private static partial System.Text.RegularExpressions.Regex ProgressLineRegex();
 }

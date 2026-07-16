@@ -26,7 +26,7 @@ public partial class AiTrailerFinder
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<string>> FindTrailerUrlsAsync(Movie movie, PluginConfiguration config, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<string>> FindTrailerUrlsAsync(Movie movie, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken)
     {
         if (config.AiProvider == AiProvider.None || string.IsNullOrWhiteSpace(config.AiApiKey))
         {
@@ -39,9 +39,9 @@ public partial class AiTrailerFinder
         {
             var text = config.AiProvider switch
             {
-                AiProvider.Anthropic => await QueryAnthropicAsync(prompt, config, cancellationToken).ConfigureAwait(false),
-                AiProvider.OpenAi => await QueryOpenAiResponsesAsync(prompt, config, "https://api.openai.com", cancellationToken).ConfigureAwait(false),
-                AiProvider.OpenAiCompatible => await QueryOpenAiChatAsync(prompt, config, cancellationToken).ConfigureAwait(false),
+                AiProvider.Anthropic => await QueryAnthropicStreamingAsync(prompt, config, onActivity, cancellationToken).ConfigureAwait(false),
+                AiProvider.OpenAi => await QueryOpenAiResponsesAsync(prompt, config, "https://api.openai.com", onActivity, cancellationToken).ConfigureAwait(false),
+                AiProvider.OpenAiCompatible => await QueryOpenAiChatAsync(prompt, config, onActivity, cancellationToken).ConfigureAwait(false),
                 _ => null
             };
 
@@ -78,13 +78,18 @@ public partial class AiTrailerFinder
             "for example: [\"https://www.youtube.com/watch?v=abc123\"]. If you cannot find any, respond with [].";
     }
 
-    private async Task<string?> QueryAnthropicAsync(string prompt, PluginConfiguration config, CancellationToken cancellationToken)
+    /// <summary>
+    /// Calls the Anthropic Messages API with streaming so intermediate SSE events can be
+    /// surfaced as live activity (thinking / web searching / writing) while the model works.
+    /// </summary>
+    private async Task<string?> QueryAnthropicStreamingAsync(string prompt, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken)
     {
         var model = string.IsNullOrWhiteSpace(config.AiModel) ? AnthropicDefaultModel : config.AiModel;
         var body = new
         {
             model,
             max_tokens = 2048,
+            stream = true,
             tools = new object[]
             {
                 new { type = "web_search_20260209", name = "web_search", max_uses = 5 }
@@ -100,31 +105,80 @@ public partial class AiTrailerFinder
         request.Headers.Add("anthropic-version", "2023-06-01");
         request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
-        using var doc = await SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (doc is null)
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromMinutes(10);
+
+        onActivity?.Invoke("AI: sending request…");
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
         {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            _logger.LogWarning("Anthropic API returned {Status}: {Body}", (int)response.StatusCode, error.Length > 500 ? error[..500] : error);
             return null;
         }
 
-        // Concatenate all text blocks from the response content.
-        var sb = new StringBuilder();
-        if (doc.RootElement.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
+        var text = new StringBuilder();
+        var searchCount = 0;
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
-            foreach (var block in content.EnumerateArray())
+            if (!line.StartsWith("data: ", StringComparison.Ordinal))
             {
-                if (block.TryGetProperty("type", out var type) && type.GetString() == "text"
-                    && block.TryGetProperty("text", out var text))
+                continue;
+            }
+
+            JsonDocument evt;
+            try
+            {
+                evt = JsonDocument.Parse(line["data: ".Length..]);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            using (evt)
+            {
+                var eventType = evt.RootElement.TryGetProperty("type", out var t) ? t.GetString() : null;
+
+                if (eventType == "content_block_start"
+                    && evt.RootElement.TryGetProperty("content_block", out var block)
+                    && block.TryGetProperty("type", out var blockType))
                 {
-                    sb.Append(text.GetString());
+                    switch (blockType.GetString())
+                    {
+                        case "thinking":
+                            onActivity?.Invoke("AI is thinking…");
+                            break;
+                        case "server_tool_use":
+                            searchCount++;
+                            onActivity?.Invoke($"AI is searching the web… (search {searchCount})");
+                            break;
+                        case "text":
+                            onActivity?.Invoke("AI is writing its answer…");
+                            break;
+                    }
+                }
+                else if (eventType == "content_block_delta"
+                    && evt.RootElement.TryGetProperty("delta", out var delta)
+                    && delta.TryGetProperty("type", out var deltaType)
+                    && deltaType.GetString() == "text_delta"
+                    && delta.TryGetProperty("text", out var deltaText))
+                {
+                    text.Append(deltaText.GetString());
                 }
             }
         }
 
-        return sb.ToString();
+        return text.ToString();
     }
 
-    private async Task<string?> QueryOpenAiResponsesAsync(string prompt, PluginConfiguration config, string baseUrl, CancellationToken cancellationToken)
+    private async Task<string?> QueryOpenAiResponsesAsync(string prompt, PluginConfiguration config, string baseUrl, Action<string>? onActivity, CancellationToken cancellationToken)
     {
+        onActivity?.Invoke("AI is searching for trailers…");
         var model = string.IsNullOrWhiteSpace(config.AiModel) ? OpenAiDefaultModel : config.AiModel;
         var body = new
         {
@@ -172,8 +226,9 @@ public partial class AiTrailerFinder
         return sb.ToString();
     }
 
-    private async Task<string?> QueryOpenAiChatAsync(string prompt, PluginConfiguration config, CancellationToken cancellationToken)
+    private async Task<string?> QueryOpenAiChatAsync(string prompt, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken)
     {
+        onActivity?.Invoke("AI is searching for trailers…");
         if (string.IsNullOrWhiteSpace(config.AiBaseUrl))
         {
             _logger.LogWarning("OpenAI-compatible provider selected but no base URL configured");

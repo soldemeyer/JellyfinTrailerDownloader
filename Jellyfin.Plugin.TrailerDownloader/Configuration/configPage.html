@@ -18,6 +18,7 @@
 
                     <div id="statsLine" style="margin:0.5em 0 1.5em 0; font-size:1.1em;"></div>
 
+                    <h3>General</h3>
                     <div class="selectContainer">
                         <select is="emby-select" id="selBackend" label="Download engine">
                             <option value="EmbeddedYtDlp">Embedded yt-dlp (runs on this server, recommended)</option>
@@ -28,6 +29,49 @@
                             directly next to your movies. The YoutubeDL-Material option queues downloads on a remote
                             server — trailers only attach to movies if that server writes to the same media folders
                             Jellyfin uses.
+                        </div>
+                    </div>
+
+                    <div id="ytdlpSettings">
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkAutoUpdate" />
+                            <span>Automatically update yt-dlp weekly</span>
+                        </label>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkTrimEndCards" />
+                            <span>Trim end cards / video-selection screens from trailers</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Uses the community SponsorBlock database to cut flagged outros, end cards and
+                            self-promo segments during download. Only applies to videos where segments have
+                            been marked by the community.
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtYtDlpPath" label="Custom yt-dlp path (optional)" />
+                            <div class="fieldDescription">Leave empty to let the plugin download and manage its own yt-dlp binary.</div>
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtExtraArgs" label="Extra yt-dlp arguments (optional)" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtCookiesFile" label="YouTube cookies file (optional)" />
+                            <div class="fieldDescription">
+                                Only needed for age-restricted trailers. While signed in to YouTube, export a
+                                Netscape-format cookies.txt (e.g. with the "Get cookies.txt LOCALLY" browser
+                                extension), place it where the Jellyfin server can read it, and enter the full
+                                path here. Warning: cookies grant access to your YouTube account — keep the
+                                file protected.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ytdlmSettings" class="hide">
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtYtdlmUrl" label="Server URL" placeholder="http://192.168.1.10:8998" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="txtYtdlmApiKey" label="API key" autocomplete="off" />
+                            <div class="fieldDescription">Enable the public API in YoutubeDL-Material's settings (Extra tab) and generate a key.</div>
                         </div>
                     </div>
 
@@ -52,26 +96,7 @@
                         </div>
                     </div>
 
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="chkSearchFallback" />
-                        <span>Search YouTube when metadata has no trailer URL</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        Uses a "title year official trailer" search. Finds more trailers but can occasionally pick a
-                        wrong or fan-made video.
-                    </div>
-
-                    <div class="inputContainer">
-                        <input is="emby-input" type="text" id="txtSearchTemplate" label="Search template" />
-                        <div class="fieldDescription">Placeholders: {title}, {year}</div>
-                    </div>
-
-                    <label class="checkboxContainer">
-                        <input is="emby-checkbox" type="checkbox" id="chkOverwrite" />
-                        <span>Re-download and overwrite existing local trailers</span>
-                    </label>
-
-                    <h3>Trailer source priority</h3>
+                    <h3>Trailer sources</h3>
                     <div class="fieldDescription" style="margin-bottom:0.75em;">
                         The plugin tries these sources in order until a trailer downloads successfully.
                         AI is skipped unless an AI provider is configured below; YouTube search is skipped
@@ -102,7 +127,20 @@
                         </select>
                     </div>
 
-                    <h3>AI trailer search</h3>
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="chkSearchFallback" />
+                        <span>Enable the YouTube search source</span>
+                    </label>
+                    <div class="fieldDescription checkboxFieldDescription">
+                        Searches YouTube with the template below. Finds more trailers but can occasionally
+                        pick a wrong or fan-made video.
+                    </div>
+
+                    <div class="inputContainer">
+                        <input is="emby-input" type="text" id="txtSearchTemplate" label="Search template" />
+                        <div class="fieldDescription">Placeholders: {title}, {year}</div>
+                    </div>
+
                     <div class="selectContainer">
                         <select is="emby-select" id="selAiProvider" label="AI provider">
                             <option value="None">Disabled</option>
@@ -162,51 +200,6 @@
                     </div>
                     <div class="inputContainer" id="scheduleIntervalContainer">
                         <input is="emby-input" type="number" id="txtScheduleInterval" label="Interval (hours)" min="1" max="168" />
-                    </div>
-
-                    <div id="ytdlpSettings">
-                        <h3>Embedded yt-dlp</h3>
-                        <label class="checkboxContainer">
-                            <input is="emby-checkbox" type="checkbox" id="chkAutoUpdate" />
-                            <span>Automatically update yt-dlp weekly</span>
-                        </label>
-                        <label class="checkboxContainer">
-                            <input is="emby-checkbox" type="checkbox" id="chkTrimEndCards" />
-                            <span>Trim end cards / video-selection screens from trailers</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            Uses the community SponsorBlock database to cut flagged outros, end cards and
-                            self-promo segments during download. Only applies to videos where segments have
-                            been marked by the community.
-                        </div>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtYtDlpPath" label="Custom yt-dlp path (optional)" />
-                            <div class="fieldDescription">Leave empty to let the plugin download and manage its own yt-dlp binary.</div>
-                        </div>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtExtraArgs" label="Extra yt-dlp arguments (optional)" />
-                        </div>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtCookiesFile" label="YouTube cookies file (optional)" />
-                            <div class="fieldDescription">
-                                Only needed for age-restricted trailers that the automatic search retry can't recover.
-                                While signed in to YouTube, export a Netscape-format cookies.txt (e.g. with the
-                                "Get cookies.txt LOCALLY" browser extension), place it where the Jellyfin server can
-                                read it, and enter the full path here. Warning: cookies grant access to your YouTube
-                                account — keep the file protected.
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="ytdlmSettings" class="hide">
-                        <h3>YoutubeDL-Material server</h3>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtYtdlmUrl" label="Server URL" placeholder="http://192.168.1.10:8998" />
-                        </div>
-                        <div class="inputContainer">
-                            <input is="emby-input" type="password" id="txtYtdlmApiKey" label="API key" autocomplete="off" />
-                            <div class="fieldDescription">Enable the public API in YoutubeDL-Material's settings (Extra tab) and generate a key.</div>
-                        </div>
                     </div>
 
                     <div>
@@ -332,8 +325,7 @@
                     el('selQuality').value = config.Quality || 'Q1080p';
                     el('selFileLayout').value = config.FileLayout || 'Suffix';
                     el('chkSearchFallback').checked = config.EnableSearchFallback !== false;
-                    el('txtSearchTemplate').value = config.SearchTemplate || '{title} {year} official trailer';
-                    el('chkOverwrite').checked = !!config.OverwriteExisting;
+                    el('txtSearchTemplate').value = config.SearchTemplate || '{title} ({year}) original theatrical trailer 35mm 4k';
                     el('chkAutoUpdate').checked = config.AutoUpdateYtDlp !== false;
                     el('txtYtDlpPath').value = config.YtDlpPath || '';
                     el('txtExtraArgs').value = config.YtDlpExtraArgs || '';
@@ -369,7 +361,6 @@
                     config.FileLayout = el('selFileLayout').value;
                     config.EnableSearchFallback = el('chkSearchFallback').checked;
                     config.SearchTemplate = el('txtSearchTemplate').value;
-                    config.OverwriteExisting = el('chkOverwrite').checked;
                     config.AutoUpdateYtDlp = el('chkAutoUpdate').checked;
                     config.YtDlpPath = el('txtYtDlpPath').value;
                     config.YtDlpExtraArgs = el('txtExtraArgs').value;
@@ -462,28 +453,75 @@
                 });
             }
 
+            var activeWatches = 0;
+
+            function shorten(text, max) {
+                return text.length > max ? text.slice(0, max - 1) + '…' : text;
+            }
+
+            // Downloads are queued server-side (AI search + download can take minutes,
+            // beyond the request timeout), so we poll Status until this movie's result
+            // appears in the log, showing the live pipeline stage on the button meanwhile.
             function downloadOne(id, name, btn, url, additional, onDone) {
                 var original = btn.innerHTML;
+                var startMs = Date.now();
                 btn.disabled = true;
-                btn.innerHTML = '<span>Downloading…</span>';
+                btn.innerHTML = '<span>Queued…</span>';
                 ApiClient.ajax({
                     type: 'POST',
                     url: ApiClient.getUrl('TrailerDownloader/Download/' + id),
                     data: JSON.stringify({ Url: url || null, Additional: !!additional }),
                     contentType: 'application/json',
                     dataType: 'json'
-                }).then(function (result) {
-                    btn.disabled = false;
-                    btn.innerHTML = result.Success ? '<span>Done ✔</span>' : original;
-                    if (!result.Success) {
-                        Dashboard.alert({ title: 'Trailer download failed: ' + name, message: result.Message });
-                    }
-                    loadStats();
-                    if (onDone) { onDone(result); }
+                }).then(function () {
+                    activeWatches++;
+                    setPollInterval(2000);
+                    var deadline = Date.now() + 20 * 60 * 1000;
+                    var watch = setInterval(function () {
+                        ApiClient.ajax({
+                            type: 'GET',
+                            url: ApiClient.getUrl('TrailerDownloader/Status'),
+                            dataType: 'json'
+                        }).then(function (s) {
+                            if (s.CurrentMovie === name && s.Activity) {
+                                btn.innerHTML = '<span>' + shorten(s.Activity, 30) + '</span>';
+                            }
+
+                            var entry = null;
+                            if (s.Recent) {
+                                for (var i = 0; i < s.Recent.length; i++) {
+                                    // Recent is newest-first; accept the newest entry for
+                                    // this movie logged after we queued (60s clock tolerance).
+                                    if (s.Recent[i].Movie === name && Date.parse(s.Recent[i].TimeUtc) >= startMs - 60000) {
+                                        entry = s.Recent[i];
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!entry && Date.now() < deadline) { return; }
+
+                            clearInterval(watch);
+                            activeWatches--;
+                            if (activeWatches <= 0) { activeWatches = 0; setPollInterval(4000); }
+                            btn.disabled = false;
+                            if (entry && entry.Success) {
+                                btn.innerHTML = '<span>Done ✔</span>';
+                            } else {
+                                btn.innerHTML = original;
+                                Dashboard.alert({
+                                    title: 'Trailer download failed: ' + name,
+                                    message: entry ? entry.Message : 'Timed out waiting for the result — check the Jellyfin log.'
+                                });
+                            }
+                            loadStats();
+                            if (onDone) { onDone(entry || { Success: false }); }
+                        });
+                    }, 2000);
                 }, function () {
                     btn.disabled = false;
                     btn.innerHTML = original;
-                    Dashboard.alert('Trailer download failed: ' + name);
+                    Dashboard.alert('Failed to queue trailer download for ' + name);
                 });
             }
 
@@ -584,9 +622,15 @@
                 }).then(function (s) {
                     var elStatus = el('scanStatus');
                     if (!elStatus) { return; }
+                    var activity = s.Activity ? (' — ' + s.Activity) : '';
+                    var queued = s.Pending > 1 ? (' (' + (s.Pending - 1) + ' more queued)') : '';
                     if (s.IsRunning) {
                         var current = s.CurrentMovie ? (' — ' + s.CurrentMovie) : '';
-                        elStatus.textContent = 'Scan running: ' + s.Processed + ' / ' + s.Total + current;
+                        elStatus.textContent = 'Scan running: ' + s.Processed + ' / ' + s.Total + current + activity;
+                    } else if (s.CurrentMovie) {
+                        elStatus.textContent = 'Working on ' + s.CurrentMovie + activity + queued;
+                    } else if (s.Pending > 0) {
+                        elStatus.textContent = s.Pending + ' download(s) queued…';
                     } else if (s.Recent && s.Recent.length) {
                         var last = s.Recent[0];
                         elStatus.textContent = 'Last: ' + last.Movie + ' — ' + (last.Success ? 'OK' : 'failed') + ' (' + last.Message + ')';
@@ -596,10 +640,21 @@
                 });
             }
 
+            var pollIntervalMs = 4000;
+
+            function setPollInterval(ms) {
+                if (ms === pollIntervalMs && statusTimer) { return; }
+                pollIntervalMs = ms;
+                if (statusTimer) {
+                    clearInterval(statusTimer);
+                    statusTimer = setInterval(pollStatus, pollIntervalMs);
+                }
+            }
+
             function startPolling() {
                 stopPolling();
                 pollStatus();
-                statusTimer = setInterval(pollStatus, 4000);
+                statusTimer = setInterval(pollStatus, pollIntervalMs);
             }
 
             function stopPolling() {

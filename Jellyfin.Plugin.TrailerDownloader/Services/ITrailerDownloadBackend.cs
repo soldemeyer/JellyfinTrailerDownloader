@@ -12,5 +12,6 @@ public record TrailerDownloadResult(bool Success, string Message);
 
 public interface ITrailerDownloadBackend
 {
-    Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, CancellationToken cancellationToken);
+    /// <param name="onActivity">Optional receiver for human-readable progress updates.</param>
+    Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken);
 }

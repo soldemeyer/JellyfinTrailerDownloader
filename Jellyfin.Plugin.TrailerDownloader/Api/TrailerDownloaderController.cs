@@ -21,6 +21,8 @@ public class DownloadRequestDto
 
 public record TrailerFileDto(string FileName, long SizeBytes, bool PluginCreated);
 
+public record QueuedDto(bool Queued, string Movie);
+
 public record LibraryStatsDto(int TotalMovies, int WithTrailer, int Missing);
 
 /// <summary>REST endpoints backing the plugin configuration page.</summary>
@@ -64,10 +66,10 @@ public class TrailerDownloaderController : ControllerBase
     /// custom video URL and/or requests an additional (indexed) trailer file.
     /// </summary>
     [HttpPost("Download/{itemId}")]
-    public async Task<ActionResult<TrailerDownloadResult>> DownloadOne(
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    public ActionResult DownloadOne(
         [FromRoute] Guid itemId,
-        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DownloadRequestDto? body,
-        CancellationToken cancellationToken)
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] DownloadRequestDto? body)
     {
         var movie = _scanner.GetMovie(itemId);
         if (movie is null)
@@ -77,15 +79,15 @@ public class TrailerDownloaderController : ControllerBase
 
         var customUrl = string.IsNullOrWhiteSpace(body?.Url) ? null : body!.Url.Trim();
         _logger.LogInformation(
-            "Manual trailer download requested for {Movie} (customUrl={HasUrl}, additional={Additional})",
+            "Manual trailer download queued for {Movie} (customUrl={HasUrl}, additional={Additional})",
             movie.Name,
             customUrl is not null,
             body?.Additional ?? false);
 
-        var result = await _downloadService
-            .DownloadForMovieAsync(movie, customUrl, body?.Additional ?? false, cancellationToken)
-            .ConfigureAwait(false);
-        return Ok(result);
+        // Runs in the background: AI search + download can take several minutes, far
+        // beyond the web client's request timeout. Completion is reported via /Status.
+        _downloadService.QueueDownload(movie, customUrl, body?.Additional ?? false);
+        return Accepted(new QueuedDto(true, movie.Name));
     }
 
     /// <summary>Lists the trailer files that exist for a movie.</summary>

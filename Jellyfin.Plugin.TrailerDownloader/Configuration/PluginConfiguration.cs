@@ -118,9 +118,6 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool TrimEndCards { get; set; } = true;
 
-    /// <summary>Gets or sets a value indicating whether existing local trailers should be replaced.</summary>
-    public bool OverwriteExisting { get; set; } = false;
-
     /// <summary>Gets or sets a custom path to a yt-dlp binary. Empty = plugin downloads/manages its own copy.</summary>
     public string YtDlpPath { get; set; } = string.Empty;
 

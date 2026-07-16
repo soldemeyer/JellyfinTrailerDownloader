@@ -15,6 +15,12 @@ public class DownloadStatus
 
     public string? CurrentMovie { get; set; }
 
+    /// <summary>Human-readable description of the current pipeline stage.</summary>
+    public string? Activity { get; set; }
+
+    /// <summary>Number of queued single-movie downloads not yet finished.</summary>
+    public int Pending { get; set; }
+
     public int Processed { get; set; }
 
     public int Total { get; set; }
@@ -54,6 +60,8 @@ public class TrailerDownloadService
 
     private bool _isRunning;
     private string? _currentMovie;
+    private string? _activity;
+    private int _pending;
     private int _processed;
     private int _total;
 
@@ -90,6 +98,8 @@ public class TrailerDownloadService
             {
                 IsRunning = _isRunning,
                 CurrentMovie = _currentMovie,
+                Activity = _activity,
+                Pending = _pending,
                 Processed = _processed,
                 Total = _total,
                 Recent = _log.AsEnumerable().Reverse().ToList()
@@ -102,6 +112,47 @@ public class TrailerDownloadService
         => DownloadForMovieAsync(movie, customUrl: null, additional: false, cancellationToken);
 
     /// <summary>
+    /// Queues a single-movie download to run in the background, detached from the HTTP
+    /// request so long AI searches and downloads survive the web client's request timeout.
+    /// Completion is reported through the status log.
+    /// </summary>
+    public void QueueDownload(Movie movie, string? customUrl, bool additional)
+    {
+        lock (_statusLock)
+        {
+            _pending++;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await DownloadForMovieAsync(movie, customUrl, additional, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Queued trailer download failed for {Movie}", movie.Name);
+                Log(movie.Name, new TrailerDownloadResult(false, ex.Message));
+            }
+            finally
+            {
+                lock (_statusLock)
+                {
+                    _pending--;
+                }
+            }
+        });
+    }
+
+    private void SetActivity(string? activity)
+    {
+        lock (_statusLock)
+        {
+            _activity = activity;
+        }
+    }
+
+    /// <summary>
     /// Downloads a trailer for one movie. With <paramref name="customUrl"/> set, downloads
     /// exactly that video; with <paramref name="additional"/> true, the file gets an indexed
     /// name so it is added alongside existing trailers instead of replacing them.
@@ -109,11 +160,6 @@ public class TrailerDownloadService
     public async Task<TrailerDownloadResult> DownloadForMovieAsync(Movie movie, string? customUrl, bool additional, CancellationToken cancellationToken)
     {
         var config = Config;
-
-        if (customUrl is null && !additional && !config.OverwriteExisting && _scanner.HasLocalTrailer(movie))
-        {
-            return Log(movie.Name, new TrailerDownloadResult(true, "Skipped: local trailer already exists"));
-        }
 
         await _downloadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -140,6 +186,7 @@ public class TrailerDownloadService
             lock (_statusLock)
             {
                 _currentMovie = null;
+                _activity = null;
             }
 
             _downloadLock.Release();
@@ -158,6 +205,7 @@ public class TrailerDownloadService
             {
                 case DiscoverySource.Metadata:
                 {
+                    SetActivity("Checking metadata trailer URL…");
                     var url = _scanner.GetRemoteTrailerUrl(movie);
                     if (url is null)
                     {
@@ -176,16 +224,24 @@ public class TrailerDownloadService
 
                 case DiscoverySource.Ai:
                 {
-                    var urls = await _aiFinder.FindTrailerUrlsAsync(movie, config, cancellationToken).ConfigureAwait(false);
+                    SetActivity($"Asking {config.AiProvider} to find official trailers…");
+                    var urls = await _aiFinder.FindTrailerUrlsAsync(movie, config, SetActivity, cancellationToken).ConfigureAwait(false);
                     if (urls.Count == 0)
                     {
+                        SetActivity("AI found no trailers");
                         continue;
                     }
 
+                    SetActivity($"AI found {urls.Count} trailer(s)");
+
                     var successes = new List<string>();
                     var isFirst = true;
-                    foreach (var url in config.AiDownloadAllResults ? urls : urls.Take(1))
+                    var index = 0;
+                    var toDownload = (config.AiDownloadAllResults ? urls : urls.Take(1)).ToList();
+                    foreach (var url in toDownload)
                     {
+                        index++;
+                        SetActivity($"Downloading trailer {index} of {toDownload.Count}…");
                         // The first file uses the caller's naming mode; extra AI results
                         // always get indexed names so they can coexist.
                         var result = await TryDownloadAsync(movie, config, url, additional || !isFirst, cancellationToken).ConfigureAwait(false);
@@ -214,6 +270,7 @@ public class TrailerDownloadService
 
                 case DiscoverySource.Search:
                 {
+                    SetActivity("Searching YouTube…");
                     var expr = _scanner.BuildSearchExpression(movie, config);
                     if (expr is null)
                     {
@@ -247,7 +304,7 @@ public class TrailerDownloadService
             return new TrailerDownloadResult(false, "Movie has no usable folder path");
         }
 
-        var result = await GetBackend(config).DownloadAsync(request, config, cancellationToken).ConfigureAwait(false);
+        var result = await GetBackend(config).DownloadAsync(request, config, SetActivity, cancellationToken).ConfigureAwait(false);
         if (result.Success && config.Backend == DownloadBackend.EmbeddedYtDlp)
         {
             // On success the embedded backend's message is the final file path.
@@ -366,11 +423,10 @@ public class TrailerDownloadService
 
         try
         {
-            var config = Config;
             var movies = _scanner.GetMovies();
 
             var pending = movies
-                .Where(m => config.OverwriteExisting || !_scanner.HasLocalTrailer(m))
+                .Where(m => !_scanner.HasLocalTrailer(m))
                 .ToList();
 
             lock (_statusLock)

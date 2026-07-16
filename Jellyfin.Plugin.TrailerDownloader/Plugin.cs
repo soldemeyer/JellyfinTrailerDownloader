@@ -46,7 +46,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 EnableInMainMenu = true,
                 DisplayName = "Trailer Downloader",
                 MenuSection = "server",
-                MenuIcon = "theaters"
+                MenuIcon = "play_circle_filled"
             }
         };
     }

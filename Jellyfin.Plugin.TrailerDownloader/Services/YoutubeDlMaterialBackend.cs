@@ -21,8 +21,10 @@ public class YoutubeDlMaterialBackend : ITrailerDownloadBackend
         _logger = logger;
     }
 
-    public async Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, CancellationToken cancellationToken)
+    public async Task<TrailerDownloadResult> DownloadAsync(TrailerDownloadRequest request, PluginConfiguration config, Action<string>? onActivity, CancellationToken cancellationToken)
     {
+        onActivity?.Invoke("Queueing on YoutubeDL-Material…");
+
         if (string.IsNullOrWhiteSpace(config.YtdlMaterialUrl))
         {
             return new TrailerDownloadResult(false, "YoutubeDL-Material server URL is not configured");
