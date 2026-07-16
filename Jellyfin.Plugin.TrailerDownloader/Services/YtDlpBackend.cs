@@ -70,6 +70,14 @@ public class YtDlpBackend : ITrailerDownloadBackend
             psi.ArgumentList.Add(ffmpegDir);
         }
 
+        // Trim community-flagged end cards / video-selection outros via SponsorBlock.
+        // Only effective on videos where segments have been marked; needs ffmpeg to cut.
+        if (config.TrimEndCards && ffmpegDir is not null)
+        {
+            psi.ArgumentList.Add("--sponsorblock-remove");
+            psi.ArgumentList.Add("outro,selfpromo,interaction");
+        }
+
         // YouTube requires a JS runtime for player challenges; without one many
         // videos fail with HTTP 403 (see yt-dlp EJS wiki).
         var denoPath = await _binaryManager.EnsureDenoAsync(cancellationToken).ConfigureAwait(false);

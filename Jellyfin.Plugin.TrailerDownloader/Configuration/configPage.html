@@ -16,6 +16,8 @@
                         <h2 class="sectionTitle">Trailer Downloader</h2>
                     </div>
 
+                    <div id="statsLine" style="margin:0.5em 0 1.5em 0; font-size:1.1em;"></div>
+
                     <div class="selectContainer">
                         <select is="emby-select" id="selBackend" label="Download engine">
                             <option value="EmbeddedYtDlp">Embedded yt-dlp (runs on this server, recommended)</option>
@@ -69,6 +71,68 @@
                         <span>Re-download and overwrite existing local trailers</span>
                     </label>
 
+                    <h3>Trailer source priority</h3>
+                    <div class="fieldDescription" style="margin-bottom:0.75em;">
+                        The plugin tries these sources in order until a trailer downloads successfully.
+                        AI is skipped unless an AI provider is configured below; YouTube search is skipped
+                        when the search fallback is disabled.
+                    </div>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selPriority1" label="First source">
+                            <option value="Metadata">Movie metadata (TMDB)</option>
+                            <option value="Ai">AI search</option>
+                            <option value="Search">YouTube search</option>
+                            <option value="">(none)</option>
+                        </select>
+                    </div>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selPriority2" label="Second source">
+                            <option value="Metadata">Movie metadata (TMDB)</option>
+                            <option value="Ai">AI search</option>
+                            <option value="Search">YouTube search</option>
+                            <option value="">(none)</option>
+                        </select>
+                    </div>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selPriority3" label="Third source">
+                            <option value="Metadata">Movie metadata (TMDB)</option>
+                            <option value="Ai">AI search</option>
+                            <option value="Search">YouTube search</option>
+                            <option value="">(none)</option>
+                        </select>
+                    </div>
+
+                    <h3>AI trailer search</h3>
+                    <div class="selectContainer">
+                        <select is="emby-select" id="selAiProvider" label="AI provider">
+                            <option value="None">Disabled</option>
+                            <option value="Anthropic">Anthropic (Claude)</option>
+                            <option value="OpenAi">OpenAI (ChatGPT)</option>
+                            <option value="OpenAiCompatible">OpenAI-compatible server</option>
+                        </select>
+                        <div class="fieldDescription">
+                            Uses the provider's web search so the model finds real, current YouTube links to
+                            official theatrical trailers. If it finds multiple official trailers, all of them
+                            can be downloaded.
+                        </div>
+                    </div>
+                    <div id="aiSettings" class="hide">
+                        <div class="inputContainer">
+                            <input is="emby-input" type="password" id="txtAiApiKey" label="API key" autocomplete="off" />
+                        </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtAiModel" label="Model (optional)" />
+                            <div class="fieldDescription">Leave empty for the provider default (Anthropic: claude-opus-4-8, OpenAI: gpt-5).</div>
+                        </div>
+                        <div class="inputContainer" id="aiBaseUrlContainer">
+                            <input is="emby-input" type="text" id="txtAiBaseUrl" label="Server base URL" placeholder="http://localhost:11434" />
+                        </div>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkAiDownloadAll" />
+                            <span>Download all trailers the AI finds (not just the first)</span>
+                        </label>
+                    </div>
+
                     <h3>Automatic schedule</h3>
                     <div class="selectContainer">
                         <select is="emby-select" id="selScheduleMode" label="Automatically download trailers">
@@ -106,6 +170,15 @@
                             <input is="emby-checkbox" type="checkbox" id="chkAutoUpdate" />
                             <span>Automatically update yt-dlp weekly</span>
                         </label>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkTrimEndCards" />
+                            <span>Trim end cards / video-selection screens from trailers</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Uses the community SponsorBlock database to cut flagged outros, end cards and
+                            self-promo segments during download. Only applies to videos where segments have
+                            been marked by the community.
+                        </div>
                         <div class="inputContainer">
                             <input is="emby-input" type="text" id="txtYtDlpPath" label="Custom yt-dlp path (optional)" />
                             <div class="fieldDescription">Leave empty to let the plugin download and manage its own yt-dlp binary.</div>
@@ -156,6 +229,12 @@
                     <button is="emby-button" type="button" id="btnRefreshList" class="raised emby-button">
                         <span>Refresh list</span>
                     </button>
+                    <button is="emby-button" type="button" id="btnClearPlugin" class="raised emby-button">
+                        <span>Delete plugin-created trailers…</span>
+                    </button>
+                    <button is="emby-button" type="button" id="btnClearAll" class="raised emby-button">
+                        <span>Delete ALL trailers…</span>
+                    </button>
                 </div>
 
                 <div id="scanStatus" class="fieldDescription" style="margin-bottom:1em;"></div>
@@ -200,6 +279,52 @@
                 el('scheduleIntervalContainer').classList.toggle('hide', mode !== 'EveryXHours');
             }
 
+            function toggleAiFields() {
+                var provider = el('selAiProvider').value;
+                el('aiSettings').classList.toggle('hide', provider === 'None');
+                el('aiBaseUrlContainer').classList.toggle('hide', provider !== 'OpenAiCompatible');
+            }
+
+            function loadStats() {
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('TrailerDownloader/Stats'),
+                    dataType: 'json'
+                }).then(function (s) {
+                    var line = el('statsLine');
+                    if (!line) { return; }
+                    if (s.Missing === 0) {
+                        line.innerHTML = '<strong>All ' + s.TotalMovies + ' movies have trailers ✔</strong>';
+                    } else {
+                        line.innerHTML = '<strong>' + s.Missing + '</strong> of <strong>' + s.TotalMovies +
+                            '</strong> movies are missing trailers (' + s.WithTrailer + ' have one).';
+                    }
+                });
+            }
+
+            function confirmThen(message, action) {
+                if (window.confirm(message)) {
+                    action();
+                }
+            }
+
+            function clearTrailers(pluginOnly) {
+                Dashboard.showLoadingMsg();
+                ApiClient.ajax({
+                    type: 'POST',
+                    url: ApiClient.getUrl('TrailerDownloader/Trailers/Clear', { pluginOnly: pluginOnly }),
+                    dataType: 'json'
+                }).then(function (count) {
+                    Dashboard.hideLoadingMsg();
+                    el('scanStatus').textContent = 'Deleted ' + count + ' trailer file(s).';
+                    loadMovies();
+                    loadStats();
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Failed to delete trailers.');
+                });
+            }
+
             function loadConfig(page) {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(function (config) {
@@ -219,8 +344,19 @@
                     el('selScheduleDay').value = config.ScheduleDayOfWeek || 'Sunday';
                     el('txtScheduleTime').value = config.ScheduleTime || '03:00';
                     el('txtScheduleInterval').value = config.ScheduleIntervalHours || 24;
+                    el('chkTrimEndCards').checked = config.TrimEndCards !== false;
+                    el('selAiProvider').value = config.AiProvider || 'None';
+                    el('txtAiApiKey').value = config.AiApiKey || '';
+                    el('txtAiModel').value = config.AiModel || '';
+                    el('txtAiBaseUrl').value = config.AiBaseUrl || '';
+                    el('chkAiDownloadAll').checked = config.AiDownloadAllResults !== false;
+                    var order = (config.DiscoveryOrder || 'Metadata,Ai,Search').split(',');
+                    el('selPriority1').value = order[0] || '';
+                    el('selPriority2').value = order[1] || '';
+                    el('selPriority3').value = order[2] || '';
                     toggleBackendSections();
                     toggleScheduleFields();
+                    toggleAiFields();
                     Dashboard.hideLoadingMsg();
                 });
             }
@@ -244,6 +380,15 @@
                     config.ScheduleDayOfWeek = el('selScheduleDay').value;
                     config.ScheduleTime = el('txtScheduleTime').value || '03:00';
                     config.ScheduleIntervalHours = parseInt(el('txtScheduleInterval').value, 10) || 24;
+                    config.TrimEndCards = el('chkTrimEndCards').checked;
+                    config.AiProvider = el('selAiProvider').value;
+                    config.AiApiKey = el('txtAiApiKey').value;
+                    config.AiModel = el('txtAiModel').value;
+                    config.AiBaseUrl = el('txtAiBaseUrl').value;
+                    config.AiDownloadAllResults = el('chkAiDownloadAll').checked;
+                    var order = [el('selPriority1').value, el('selPriority2').value, el('selPriority3').value]
+                        .filter(function (v, i, arr) { return v && arr.indexOf(v) === i; });
+                    config.DiscoveryOrder = order.join(',') || 'Metadata';
                     ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
                     });
@@ -267,51 +412,167 @@
                         var tr = document.createElement('tr');
 
                         var source = m.HasRemoteTrailerUrl ? 'Metadata' : (m.CanSearch ? 'YouTube search' : 'None');
-                        var canDownload = m.HasRemoteTrailerUrl || m.CanSearch;
 
                         tr.innerHTML =
                             '<td style="padding:0.4em;"></td>' +
                             '<td style="padding:0.4em;">' + (m.Year || '') + '</td>' +
                             '<td style="padding:0.4em;">' + (m.HasLocalTrailer ? '✔' : '—') + '</td>' +
                             '<td style="padding:0.4em;">' + source + '</td>' +
-                            '<td style="padding:0.4em;"></td>';
+                            '<td style="padding:0.4em; white-space:nowrap;"></td>';
                         tr.cells[0].textContent = m.Name;
 
-                        if (canDownload) {
-                            var btn = document.createElement('button');
-                            btn.setAttribute('is', 'emby-button');
-                            btn.type = 'button';
-                            btn.className = 'raised emby-button';
-                            btn.innerHTML = '<span>' + (m.HasLocalTrailer ? 'Re-download' : 'Download') + '</span>';
-                            btn.addEventListener('click', function () {
-                                downloadOne(m.Id, m.Name, btn);
-                            });
-                            tr.cells[4].appendChild(btn);
-                        }
+                        var btn = document.createElement('button');
+                        btn.setAttribute('is', 'emby-button');
+                        btn.type = 'button';
+                        btn.className = 'raised emby-button';
+                        btn.innerHTML = '<span>' + (m.HasLocalTrailer ? 'Re-download' : 'Download') + '</span>';
+                        btn.addEventListener('click', function () {
+                            downloadOne(m.Id, m.Name, btn, null, false);
+                        });
+                        tr.cells[4].appendChild(btn);
+
+                        var manageBtn = document.createElement('button');
+                        manageBtn.setAttribute('is', 'emby-button');
+                        manageBtn.type = 'button';
+                        manageBtn.className = 'raised emby-button';
+                        manageBtn.style.marginLeft = '0.4em';
+                        manageBtn.innerHTML = '<span>Manage</span>';
+                        tr.cells[4].appendChild(manageBtn);
+
+                        var detailTr = document.createElement('tr');
+                        detailTr.className = 'hide';
+                        var detailTd = document.createElement('td');
+                        detailTd.colSpan = 5;
+                        detailTd.style.padding = '0.6em 1.2em 1em 1.2em';
+                        detailTr.appendChild(detailTd);
+
+                        manageBtn.addEventListener('click', function () {
+                            var wasHidden = detailTr.classList.contains('hide');
+                            detailTr.classList.toggle('hide');
+                            if (wasHidden) {
+                                renderManagePanel(m, detailTd);
+                            }
+                        });
 
                         body.appendChild(tr);
+                        body.appendChild(detailTr);
                     });
                 }, function () {
                     body.innerHTML = '<tr><td colspan="5" style="padding:0.4em;">Failed to load movie list.</td></tr>';
                 });
             }
 
-            function downloadOne(id, name, btn) {
+            function downloadOne(id, name, btn, url, additional, onDone) {
+                var original = btn.innerHTML;
                 btn.disabled = true;
                 btn.innerHTML = '<span>Downloading…</span>';
                 ApiClient.ajax({
                     type: 'POST',
                     url: ApiClient.getUrl('TrailerDownloader/Download/' + id),
+                    data: JSON.stringify({ Url: url || null, Additional: !!additional }),
+                    contentType: 'application/json',
                     dataType: 'json'
                 }).then(function (result) {
                     btn.disabled = false;
-                    btn.innerHTML = '<span>' + (result.Success ? 'Done ✔' : 'Failed ✖') + '</span>';
+                    btn.innerHTML = result.Success ? '<span>Done ✔</span>' : original;
                     if (!result.Success) {
                         Dashboard.alert({ title: 'Trailer download failed: ' + name, message: result.Message });
                     }
+                    loadStats();
+                    if (onDone) { onDone(result); }
                 }, function () {
                     btn.disabled = false;
-                    btn.innerHTML = '<span>Failed ✖</span>';
+                    btn.innerHTML = original;
+                    Dashboard.alert('Trailer download failed: ' + name);
+                });
+            }
+
+            function renderManagePanel(m, container) {
+                container.innerHTML = '<em>Loading trailers…</em>';
+                ApiClient.ajax({
+                    type: 'GET',
+                    url: ApiClient.getUrl('TrailerDownloader/Movies/' + m.Id + '/Trailers'),
+                    dataType: 'json'
+                }).then(function (files) {
+                    container.innerHTML = '';
+
+                    var list = document.createElement('div');
+                    if (!files.length) {
+                        list.innerHTML = '<div class="fieldDescription">No trailer files for this movie.</div>';
+                    }
+                    files.forEach(function (f) {
+                        var row = document.createElement('div');
+                        row.style.cssText = 'display:flex; align-items:center; gap:0.8em; padding:0.25em 0;';
+                        var sizeMb = (f.SizeBytes / 1048576).toFixed(1);
+                        var label = document.createElement('span');
+                        label.textContent = f.FileName + ' (' + sizeMb + ' MB)' + (f.PluginCreated ? ' — plugin' : '');
+                        row.appendChild(label);
+
+                        var del = document.createElement('button');
+                        del.setAttribute('is', 'emby-button');
+                        del.type = 'button';
+                        del.className = 'raised emby-button';
+                        del.innerHTML = '<span>Delete</span>';
+                        del.addEventListener('click', function () {
+                            confirmThen('Delete "' + f.FileName + '"?', function () {
+                                ApiClient.ajax({
+                                    type: 'DELETE',
+                                    url: ApiClient.getUrl('TrailerDownloader/Movies/' + m.Id + '/Trailers', { fileName: f.FileName })
+                                }).then(function () {
+                                    renderManagePanel(m, container);
+                                    loadStats();
+                                }, function () {
+                                    Dashboard.alert('Failed to delete ' + f.FileName);
+                                });
+                            });
+                        });
+                        row.appendChild(del);
+                        list.appendChild(row);
+                    });
+                    container.appendChild(list);
+
+                    var addRow = document.createElement('div');
+                    addRow.style.cssText = 'display:flex; align-items:center; gap:0.6em; margin-top:0.8em; flex-wrap:wrap;';
+
+                    var urlInput = document.createElement('input');
+                    urlInput.setAttribute('is', 'emby-input');
+                    urlInput.type = 'text';
+                    urlInput.placeholder = 'https://www.youtube.com/watch?v=…';
+                    urlInput.style.cssText = 'flex:1; min-width:260px;';
+                    addRow.appendChild(urlInput);
+
+                    var addBtn = document.createElement('button');
+                    addBtn.setAttribute('is', 'emby-button');
+                    addBtn.type = 'button';
+                    addBtn.className = 'raised button-submit emby-button';
+                    addBtn.innerHTML = '<span>Add from URL</span>';
+                    addBtn.addEventListener('click', function () {
+                        var url = urlInput.value.trim();
+                        if (!url) { return; }
+                        downloadOne(m.Id, m.Name, addBtn, url, true, function (result) {
+                            if (result.Success) {
+                                urlInput.value = '';
+                                renderManagePanel(m, container);
+                            }
+                        });
+                    });
+                    addRow.appendChild(addBtn);
+
+                    var anotherBtn = document.createElement('button');
+                    anotherBtn.setAttribute('is', 'emby-button');
+                    anotherBtn.type = 'button';
+                    anotherBtn.className = 'raised emby-button';
+                    anotherBtn.innerHTML = '<span>Download another (auto)</span>';
+                    anotherBtn.addEventListener('click', function () {
+                        downloadOne(m.Id, m.Name, anotherBtn, null, true, function (result) {
+                            if (result.Success) { renderManagePanel(m, container); }
+                        });
+                    });
+                    addRow.appendChild(anotherBtn);
+
+                    container.appendChild(addRow);
+                }, function () {
+                    container.innerHTML = '<em>Failed to load trailer files.</em>';
                 });
             }
 
@@ -353,6 +614,7 @@
             page.addEventListener('pageshow', function () {
                 loadConfig(page);
                 loadMovies();
+                loadStats();
                 startPolling();
             });
 
@@ -368,7 +630,18 @@
 
             el('selBackend').addEventListener('change', toggleBackendSections);
             el('selScheduleMode').addEventListener('change', toggleScheduleFields);
-            el('btnRefreshList').addEventListener('click', loadMovies);
+            el('selAiProvider').addEventListener('change', toggleAiFields);
+            el('btnRefreshList').addEventListener('click', function () { loadMovies(); loadStats(); });
+            el('btnClearPlugin').addEventListener('click', function () {
+                confirmThen(
+                    'Delete all trailers that were downloaded by this plugin? Trailers that existed before or were added by other tools are kept. This cannot be undone.',
+                    function () { clearTrailers(true); });
+            });
+            el('btnClearAll').addEventListener('click', function () {
+                confirmThen(
+                    'Delete EVERY trailer file for EVERY movie in your library, including ones you added yourself? This cannot be undone.',
+                    function () { clearTrailers(false); });
+            });
             el('btnDownloadAll').addEventListener('click', function () {
                 ApiClient.ajax({
                     type: 'POST',

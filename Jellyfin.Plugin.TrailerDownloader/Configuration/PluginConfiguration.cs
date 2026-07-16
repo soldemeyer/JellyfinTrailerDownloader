@@ -32,6 +32,15 @@ public enum TrailerFileLayout
     TrailersFolder = 1
 }
 
+/// <summary>Which LLM API performs AI trailer search.</summary>
+public enum AiProvider
+{
+    None = 0,
+    Anthropic = 1,
+    OpenAi = 2,
+    OpenAiCompatible = 3
+}
+
 /// <summary>How the automatic library-wide download is scheduled.</summary>
 public enum ScheduleMode
 {
@@ -71,7 +80,43 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool EnableSearchFallback { get; set; } = true;
 
     /// <summary>Gets or sets the YouTube search template used by the fallback. Supports {title} and {year}.</summary>
-    public string SearchTemplate { get; set; } = "{title} {year} official trailer";
+    public string SearchTemplate { get; set; } = DefaultSearchTemplate;
+
+    /// <summary>Current default search template.</summary>
+    public const string DefaultSearchTemplate = "{title} ({year}) original theatrical trailer 35mm 4k";
+
+    /// <summary>Search template default used before 1.1.0 (for config migration).</summary>
+    public const string LegacySearchTemplate = "{title} {year} official trailer";
+
+    /// <summary>
+    /// Gets or sets the ordered, comma-separated list of trailer discovery sources.
+    /// Valid entries: Metadata, Ai, Search.
+    /// </summary>
+    public string DiscoveryOrder { get; set; } = "Metadata,Ai,Search";
+
+    /// <summary>Gets or sets the LLM provider used for AI trailer search (None disables the Ai source).</summary>
+    public AiProvider AiProvider { get; set; } = AiProvider.None;
+
+    /// <summary>Gets or sets the API key for the AI provider.</summary>
+    public string AiApiKey { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the model name. Empty = provider default.</summary>
+    public string AiModel { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the base URL for OpenAI-compatible servers.</summary>
+    public string AiBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether all trailers found by the AI are downloaded
+    /// (false = only the first).
+    /// </summary>
+    public bool AiDownloadAllResults { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether community-flagged end cards / video-selection
+    /// segments are trimmed from downloads via SponsorBlock.
+    /// </summary>
+    public bool TrimEndCards { get; set; } = true;
 
     /// <summary>Gets or sets a value indicating whether existing local trailers should be replaced.</summary>
     public bool OverwriteExisting { get; set; } = false;

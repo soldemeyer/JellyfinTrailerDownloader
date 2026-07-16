@@ -31,6 +31,24 @@ trailer is automatically attached to its movie.
     for movies that share a folder with other movies).
 - Skips movies that already have a local trailer (optional overwrite mode), downloads
   to a temporary name and renames on success so partial files are never picked up.
+- **Configurable source priority** — metadata, AI search, and YouTube search are tried
+  in the order you choose.
+- **AI trailer search** — optionally use Anthropic (Claude), OpenAI (ChatGPT), or an
+  OpenAI-compatible server (API key required) to find official theatrical trailers via
+  the provider's web search; when several distinct official trailers exist, all can be
+  downloaded. Links from providers without web search are validated by yt-dlp.
+- **Per-movie management** — a Manage panel per movie lists its trailer files (with a
+  "plugin" badge on ones this plugin downloaded), deletes individual files, adds a
+  trailer from a custom YouTube URL, or downloads an additional trailer automatically.
+  Extra trailers use indexed names (`Movie [2]-trailer.mp4`) that Jellyfin still
+  recognizes.
+- **Bulk cleanup** — delete all plugin-created trailers (tracked in a ledger) or every
+  trailer in the library, both behind confirmation prompts.
+- **End-card trimming** — flagged outros/end cards/self-promo segments are cut from
+  downloads using the community SponsorBlock database (applies where segments have
+  been marked).
+- A missing-trailer count for the whole library is always shown at the top of the
+  settings page.
 
 ## Installation
 

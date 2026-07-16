@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/soldemeyer/JellyfinTrailerDownloader/main/assets/banner.png",
     "versions": [
       {
+        "version": "1.1.0.0",
+        "changelog": "Per-movie trailer management, AI trailer search (Anthropic/OpenAI), configurable source priority, end-card trimming, bulk clear, library stats.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/soldemeyer/JellyfinTrailerDownloader/releases/download/v1.1.0.0/trailer-downloader_1.1.0.0.zip",
+        "checksum": "aeea08eef80381213afb60b0fa7b4a90",
+        "timestamp": "2026-07-16T04:55:19Z"
+      },
+      {
         "version": "1.0.3.0",
         "changelog": "Retry dead or age-restricted trailer URLs via YouTube search; optional cookies file support.",
         "targetAbi": "10.11.0.0",

@@ -1,7 +1,7 @@
 ---
 name: "Trailer Downloader"
 guid: "8f7fd897-4d3c-4a06-b8b1-8ca9b1c1a042"
-version: "1.0.3.0"
+version: "1.1.0.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 owner: "soldemeyer"
@@ -13,6 +13,6 @@ description: >
   saved using Jellyfin's local trailer naming conventions so they attach to each
   movie automatically. Supports per-movie manual downloads, a manual full-library
   run, a weekly scheduled task, and configurable quality and file placement.
-changelog: "Retry dead or age-restricted trailer URLs via YouTube search; optional cookies file support."
+changelog: "Per-movie trailer management, AI trailer search (Anthropic/OpenAI), configurable source priority, end-card trimming, bulk clear, library stats."
 artifacts:
   - "Jellyfin.Plugin.TrailerDownloader.dll"

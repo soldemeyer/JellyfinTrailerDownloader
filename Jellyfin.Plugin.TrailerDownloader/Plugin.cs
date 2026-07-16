@@ -16,6 +16,14 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+
+        // Config migration: upgrade the pre-1.1.0 default search template unless the
+        // user customized it.
+        if (Configuration.SearchTemplate == PluginConfiguration.LegacySearchTemplate)
+        {
+            Configuration.SearchTemplate = PluginConfiguration.DefaultSearchTemplate;
+            SaveConfiguration();
+        }
     }
 
     public static Plugin? Instance { get; private set; }
