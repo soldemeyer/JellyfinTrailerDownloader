@@ -87,17 +87,19 @@ public partial class YtDlpBackend : ITrailerDownloadBackend
             psi.ArgumentList.Add("deno:" + denoPath);
         }
 
-        if (!string.IsNullOrWhiteSpace(config.CookiesFilePath))
+        if (config.PreferAndroidPlayerClient)
         {
-            if (File.Exists(config.CookiesFilePath))
-            {
-                psi.ArgumentList.Add("--cookies");
-                psi.ArgumentList.Add(config.CookiesFilePath);
-            }
-            else
-            {
-                _logger.LogWarning("Configured cookies file does not exist: {Path}", config.CookiesFilePath);
-            }
+            // Requesting YouTube's Android client (falling back to web) sometimes avoids
+            // "Sign in to confirm you're not a bot" errors; harmless if it doesn't apply.
+            psi.ArgumentList.Add("--extractor-args");
+            psi.ArgumentList.Add("youtube:player_client=android,web");
+        }
+
+        var cookiesPath = _binaryManager.EnsureCookiesFile(config.CookiesFileContent);
+        if (cookiesPath is not null)
+        {
+            psi.ArgumentList.Add("--cookies");
+            psi.ArgumentList.Add(cookiesPath);
         }
 
         foreach (var arg in SplitArgs(config.YtDlpExtraArgs))

@@ -181,6 +181,37 @@ public class YtDlpBinaryManager
         }
     }
 
+    /// <summary>
+    /// Writes pasted cookies.txt content to a fixed file in the plugin data folder so
+    /// yt-dlp can use it, so users don't need to place a file on the server themselves.
+    /// Returns null when there is no content to write.
+    /// </summary>
+    public string? EnsureCookiesFile(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        var path = Path.Combine(DataFolder, "cookies.txt");
+
+        try
+        {
+            if (!File.Exists(path) || File.ReadAllText(path) != content)
+            {
+                Directory.CreateDirectory(DataFolder);
+                File.WriteAllText(path, content);
+            }
+
+            return path;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not write cookies file to {Path}", path);
+            return null;
+        }
+    }
+
     private static string DenoAssetName
     {
         get

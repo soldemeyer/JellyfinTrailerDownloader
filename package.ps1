@@ -2,7 +2,7 @@
 # ready to drop into Jellyfin's plugins directory.
 $ErrorActionPreference = 'Stop'
 
-$version = '1.1.1.0'
+$version = '1.1.3.0'
 $root = $PSScriptRoot
 $proj = Join-Path $root 'Jellyfin.Plugin.TrailerDownloader\Jellyfin.Plugin.TrailerDownloader.csproj'
 $outDir = Join-Path $root 'dist\trailer-downloader'
@@ -26,7 +26,7 @@ $meta = [ordered]@{
     owner       = 'soldemeyer'
     category    = 'General'
     version     = $version
-    changelog   = 'Fix download timeouts (downloads now run in the background) with live stage-by-stage progress; new sidebar icon; simplified and regrouped settings.'
+    changelog   = 'YouTube cookies are now pasted directly into settings instead of requiring a file on the server.'
     targetAbi   = '10.11.0.0'
     framework   = 'net9.0'
     autoUpdate  = $false

@@ -124,14 +124,24 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets a value indicating whether the managed yt-dlp binary is auto-updated weekly.</summary>
     public bool AutoUpdateYtDlp { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether yt-dlp requests YouTube's Android player
+    /// client (falling back to the standard web client) instead of only the web client.
+    /// This sometimes avoids "Sign in to confirm you're not a bot" errors; if it doesn't
+    /// help for your network, a cookies file is the authoritative fix.
+    /// </summary>
+    public bool PreferAndroidPlayerClient { get; set; } = true;
+
     /// <summary>Gets or sets extra command line arguments passed to yt-dlp.</summary>
     public string YtDlpExtraArgs { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the path to a Netscape-format YouTube cookies.txt file, used to
-    /// download age-restricted trailers. Empty = no cookies.
+    /// Gets or sets the pasted contents of a Netscape-format YouTube cookies.txt export,
+    /// used to download age-restricted trailers. Empty = no cookies. Written to a file in
+    /// the plugin data folder before use so the user never has to place a file on the
+    /// server themselves.
     /// </summary>
-    public string CookiesFilePath { get; set; } = string.Empty;
+    public string CookiesFileContent { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the base URL of the YoutubeDL-Material server (e.g. http://192.168.1.10:8998).</summary>
     public string YtdlMaterialUrl { get; set; } = string.Empty;

@@ -38,6 +38,15 @@
                             <span>Automatically update yt-dlp weekly</span>
                         </label>
                         <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="chkAndroidClient" />
+                            <span>Use YouTube's Android client to avoid bot-check errors</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Sometimes avoids "Sign in to confirm you're not a bot" errors from YouTube. If a
+                            trailer still fails with that error after enabling this, a YouTube cookies file
+                            (below) is the reliable fix.
+                        </div>
+                        <label class="checkboxContainer">
                             <input is="emby-checkbox" type="checkbox" id="chkTrimEndCards" />
                             <span>Trim end cards / video-selection screens from trailers</span>
                         </label>
@@ -54,13 +63,17 @@
                             <input is="emby-input" type="text" id="txtExtraArgs" label="Extra yt-dlp arguments (optional)" />
                         </div>
                         <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtCookiesFile" label="YouTube cookies file (optional)" />
+                            <label class="inputLabel inputLabelUnfocused" for="txtCookiesContent">YouTube cookies (optional)</label>
+                            <textarea id="txtCookiesContent" rows="6" spellcheck="false" autocomplete="off"
+                                style="width:100%; font-family:monospace; font-size:0.85em; resize:vertical;"
+                                placeholder="# Netscape HTTP Cookie File&#10;.youtube.com&#9;TRUE&#9;/&#9;TRUE&#9;...&#9;..."></textarea>
                             <div class="fieldDescription">
-                                Only needed for age-restricted trailers. While signed in to YouTube, export a
-                                Netscape-format cookies.txt (e.g. with the "Get cookies.txt LOCALLY" browser
-                                extension), place it where the Jellyfin server can read it, and enter the full
-                                path here. Warning: cookies grant access to your YouTube account — keep the
-                                file protected.
+                                Only needed for age-restricted trailers. While signed in to YouTube, export cookies
+                                in Netscape cookies.txt format (e.g. with the "Get cookies.txt LOCALLY" browser
+                                extension) and paste the entire file contents here — the plugin stores it on the
+                                server for you, so there's no file to place or path to enter. Warning: these
+                                cookies grant access to your YouTube account; only paste them into a Jellyfin
+                                server you trust.
                             </div>
                         </div>
                     </div>
@@ -329,7 +342,7 @@
                     el('chkAutoUpdate').checked = config.AutoUpdateYtDlp !== false;
                     el('txtYtDlpPath').value = config.YtDlpPath || '';
                     el('txtExtraArgs').value = config.YtDlpExtraArgs || '';
-                    el('txtCookiesFile').value = config.CookiesFilePath || '';
+                    el('txtCookiesContent').value = config.CookiesFileContent || '';
                     el('txtYtdlmUrl').value = config.YtdlMaterialUrl || '';
                     el('txtYtdlmApiKey').value = config.YtdlMaterialApiKey || '';
                     el('selScheduleMode').value = config.ScheduleMode || 'Weekly';
@@ -337,6 +350,7 @@
                     el('txtScheduleTime').value = config.ScheduleTime || '03:00';
                     el('txtScheduleInterval').value = config.ScheduleIntervalHours || 24;
                     el('chkTrimEndCards').checked = config.TrimEndCards !== false;
+                    el('chkAndroidClient').checked = config.PreferAndroidPlayerClient !== false;
                     el('selAiProvider').value = config.AiProvider || 'None';
                     el('txtAiApiKey').value = config.AiApiKey || '';
                     el('txtAiModel').value = config.AiModel || '';
@@ -364,7 +378,7 @@
                     config.AutoUpdateYtDlp = el('chkAutoUpdate').checked;
                     config.YtDlpPath = el('txtYtDlpPath').value;
                     config.YtDlpExtraArgs = el('txtExtraArgs').value;
-                    config.CookiesFilePath = el('txtCookiesFile').value;
+                    config.CookiesFileContent = el('txtCookiesContent').value;
                     config.YtdlMaterialUrl = el('txtYtdlmUrl').value;
                     config.YtdlMaterialApiKey = el('txtYtdlmApiKey').value;
                     config.ScheduleMode = el('selScheduleMode').value;
@@ -372,6 +386,7 @@
                     config.ScheduleTime = el('txtScheduleTime').value || '03:00';
                     config.ScheduleIntervalHours = parseInt(el('txtScheduleInterval').value, 10) || 24;
                     config.TrimEndCards = el('chkTrimEndCards').checked;
+                    config.PreferAndroidPlayerClient = el('chkAndroidClient').checked;
                     config.AiProvider = el('selAiProvider').value;
                     config.AiApiKey = el('txtAiApiKey').value;
                     config.AiModel = el('txtAiModel').value;
